@@ -67,7 +67,6 @@ const ERASE_SOUND = "perc_conga_low"
 const LINE_SOUND = "fx_drip2"
 const XYLO_SEQUENCE = ["xylo_c5", "xylo_e5", "xylo_g5", "xylo_a5",
     "xylo_c6", "xylo_a5", "xylo_g5", "xylo_e5", "xylo_c5"]
-const LINE_OPTIONS = {"volume": 0.25}
 
 let isHorizontal = true
 let erasing = false;
@@ -97,7 +96,11 @@ function blend(a,b) {
 }
 
 function linePlaySound(offset, isHorizontal) {
-    PS.audioPlay(LINE_SOUND, LINE_OPTIONS);
+    if (offset === 0) {
+        PS.audioPlay(LINE_SOUND, {"volume": 0.35});
+    } else {
+        PS.audioPlay(LINE_SOUND, {"volume": 0.15});
+    }
 }
 
 function dynamicColor(x, y, color) {
