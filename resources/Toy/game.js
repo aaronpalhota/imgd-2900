@@ -99,7 +99,7 @@ function linePlaySound(offset, isHorizontal) {
     if (offset === 0) {
         PS.audioPlay(LINE_SOUND, {"volume": 0.35});
     } else {
-        PS.audioPlay(LINE_SOUND, {"volume": 0.15});
+        PS.audioPlay(LINE_SOUND, {"volume": 0.1});
     }
 }
 
@@ -232,3 +232,4 @@ PS.keyDown = function( key, shift, ctrl, options ) {
         erase(0)
     }
 };
+
