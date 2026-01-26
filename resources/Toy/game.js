@@ -1,41 +1,3 @@
-/*
-game.js for Perlenspiel 3.3.x
-Last revision: 2022-03-15 (BM)
-
-Perlenspiel is a scheme by Professor Moriarty (bmoriarty@wpi.edu).
-This version of Perlenspiel (3.3.x) is hosted at <https://ps3.perlenspiel.net>
-Perlenspiel is Copyright © 2009-22 Brian Moriarty.
-This file is part of the standard Perlenspiel 3.3.x devkit distribution.
-
-Perlenspiel is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Perlenspiel is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Lesser General Public License for more details.
-
-You may have received a copy of the GNU Lesser General Public License
-along with the Perlenspiel devkit. If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
-This JavaScript file is a template for creating new Perlenspiel 3.3.x games.
-Any unused event-handling function templates can be safely deleted.
-Refer to the tutorials and documentation at <https://ps3.perlenspiel.net> for details.
-*/
-
-/*
-The following comment lines are for JSHint <https://jshint.com>, a tool for monitoring code quality.
-You may find them useful if your development environment is configured to support JSHint.
-If you don't use JSHint (or are using it with a configuration file), you can safely delete these two lines.
-*/
-
-/* jshint browser : true, devel : true, esversion : 6, freeze : true */
-/* globals PS : true */
-
 "use strict"; // Do NOT remove this directive!
 
 /*
@@ -52,7 +14,7 @@ const GRID_X = 15;
 const GRID_Y = 12;
 
 const LINE_DRAW_TICKS = 8;
-const BOARD_ERASE_TICKS = 10;
+const BOARD_ERASE_TICKS = 8;
 
 const COLORS =
     [PS.COLOR_RED,
@@ -61,18 +23,12 @@ const COLORS =
     PS.COLOR_GREEN,
     PS.COLOR_BLUE,
     PS.COLOR_VIOLET]
-const ERASE_COLOR = PS.COLOR_WHITE;
+const ERASE_COLOR = PS.COLOR_BLACK;
+const CLEAN_COLOR = PS.COLOR_WHITE;
 const ERASE_SOUND = "perc_conga_low"
-const XYLO_SEQUENCE =
-    ["xylo_c5",
-    "xylo_d5",
-    "xylo_e5",
-    "xylo_f5",
-    "xylo_g5",
-    "xylo_a5",
-    "xylo_b5",
-    "xylo_c6"]
-const XYLO_OPTIONS = {"volume": 0.1}
+const XYLO_SEQUENCE = ["xylo_c5", "xylo_e5", "xylo_g5", "xylo_a5",
+    "xylo_c6", "xylo_a5", "xylo_g5", "xylo_e5", "xylo_c5"]
+const LINE_OPTIONS = {"volume": 0.25}
 
 let isHorizontal = true
 let erasing = false;
@@ -100,18 +56,15 @@ function blend(a,b) {
     return (a + b) / 2
 }
 
-function clamp(min, a, max) {
-    return Math.min(Math.max(a, min), max);
-}
-
-function linePlaySound(offset) {
-    PS.audioPlay(XYLO_SEQUENCE[clamp(0, offset, XYLO_SEQUENCE.length - 1)], XYLO_OPTIONS);
+function linePlaySound(offset, isHorizontal) {
+    PS.audioPlay("fx_drip2", LINE_OPTIONS);
 }
 
 function dynamicColor(x, y, color) {
     let rgbA = []
     let rgbB = []
 
+    // Get the color of the tile
     PS.unmakeRGB(PS.color(x,y), rgbA)
     PS.unmakeRGB(color, rgbB)
 
@@ -141,7 +94,7 @@ function paintHorizontalLine(x, y, color, offset = 0) {
 
     if (success) {
         // Play sound
-        linePlaySound(offset);
+        linePlaySound(offset, true);
 
         // Recurse
         let timer = PS.timerStart(LINE_DRAW_TICKS, function() {
@@ -173,7 +126,7 @@ function paintVerticalLine(x, y, color, offset = 0) {
 
     if (success) {
         // Play sound
-        linePlaySound(XYLO_SEQUENCE.length - (1 + offset));
+        linePlaySound(offset, false);
 
         // Recurse
         let timer = PS.timerStart(LINE_DRAW_TICKS, function() {
@@ -183,30 +136,10 @@ function paintVerticalLine(x, y, color, offset = 0) {
     }
 }
 
-function paintLineUp(x, y, color) {
-    if (y < 0 || erasing) {
-        return;
+function clean(y) {
+    for (let x = 0; x < GRID_X; x++) {
+        PS.color(x, y, CLEAN_COLOR);
     }
-
-    dynamicColor(x, y, color);
-
-    let timer = PS.timerStart(LINE_DRAW_TICKS, function() {
-        paintLineUp(x, y - 1, color);
-        PS.timerStop(timer);
-    })
-}
-
-function paintLineDown(x, y, color) {
-    if (y >= GRID_Y  || erasing) {
-        return 0;
-    }
-
-    dynamicColor(x, y, color);
-
-    let timer = PS.timerStart(LINE_DRAW_TICKS, function() {
-        paintLineDown(x, y + 1, color);
-        PS.timerStop(timer);
-    })
 }
 
 function erase(y) {
@@ -221,6 +154,7 @@ function erase(y) {
     }
 
     let timer = PS.timerStart(BOARD_ERASE_TICKS, function() {
+        clean(y)
         erase(y + 1);
         PS.timerStop(timer);
     })
