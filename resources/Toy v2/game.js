@@ -53,8 +53,8 @@ const GRID_Y = 12
 
 const LINE_DRAW_TICKS = 8
 const BOARD_ERASE_TICKS = 8
-const PALETTE_DISPLAY_TICKS = 60
-var paletteTimer
+const PROMPT_TICKS = 90
+var promptTimer
 var debounce = false
 
 var currentPalette = 0
@@ -118,12 +118,12 @@ const PALETTES = [
     },
     {
         "Name": "Skylight",
-        "Background": 0xb8d6f0,
+        "Background": 0x90c6f5,
         "Contrast": PS.COLOR_BLACK,
         "Colors": [
             PS.COLOR_WHITE,
-            0xfdeb3f,
-            0x41637c,
+            0xfff275,
+            0x5c8bad,
             PS.COLOR_GRAY]
     },
     {
@@ -168,7 +168,7 @@ const PALETTES = [
 const ERASE_SOUND = "perc_conga_low"
 const LINE_SOUND = "fx_drip2"
 const PALETTE_SOUND = "fx_bucket"
-const PALETTE_ERROR_SOUND = "fx_blast3"
+const ERROR_SOUND = "perc_cowbell_low"
 
 let isHorizontal = true
 let erasing = false;
@@ -181,6 +181,10 @@ PS.init = function( system, options ) {
     // Load sound effects
     PS.audioLoad(ERASE_SOUND)
     PS.audioLoad(LINE_SOUND)
+    PS.audioLoad(PALETTE_SOUND)
+    PS.audioLoad(ERROR_SOUND)
+
+    tempPrompt("Controls: Click, Space, </>", 60*6)
 };
 
 /*
@@ -195,16 +199,16 @@ This function doesn't have to do anything. Any value returned is ignored.
 
 function linePlaySound(offset, isHorizontal) {
     if (offset === 0) {
-        PS.audioPlay(LINE_SOUND, {"volume": 0.35});
+        PS.audioPlay(LINE_SOUND, {"volume": 0.5});
     } else {
-        PS.audioPlay(LINE_SOUND, {"volume": 0.1});
+        PS.audioPlay(LINE_SOUND, {"volume": 0.15});
     }
 }
 
 function blend(old_c, new_c) {
     // Weights the new color
     return (old_c + new_c*2) / 3
- }
+}
 
 function dynamicColor(x, y, color) {
     let rgbA = []
@@ -299,7 +303,7 @@ function erase(y) {
 
     erasing = true;
 
-    PS.audioPlay("perc_conga_low")
+    PS.audioPlay(ERASE_SOUND)
     for (let x = 0; x < GRID_X; x++) {
         PS.color(x, y, PALETTES[currentPalette]["Contrast"])
     }
@@ -311,12 +315,24 @@ function erase(y) {
     })
 }
 
+function tempPrompt(text, duration=PROMPT_TICKS) {
+    if (promptTimer) {
+        PS.timerStop(promptTimer);
+    }
+
+    PS.statusText("Plaid Toy | " + text);
+    promptTimer = PS.timerStart(duration, function() {
+        PS.statusText( "Plaid Toy" );
+        PS.timerStop(promptTimer);
+        promptTimer = null
+    })
+}
+
 function updatePalette() {
     debounce = false
     PS.gridColor(PALETTES[currentPalette]["Background"]);
-    PS.audioPlay(PALETTE_SOUND)
-
-    PS.statusText( "Plaid Toy | Palette: " + PALETTES[currentPalette]["Name"]);
+    PS.audioPlay(PALETTE_SOUND, {volume: 0.5})
+    
     PS.statusColor(PALETTES[currentPalette]["Contrast"])
 
     for (let y = 0; y < GRID_Y; y++) {
@@ -325,15 +341,7 @@ function updatePalette() {
         }
     }
 
-    if (paletteTimer) {
-        PS.timerStop(paletteTimer);
-    }
-
-    paletteTimer = PS.timerStart(PALETTE_DISPLAY_TICKS, function() {
-        PS.statusText( "Plaid Toy" );
-        PS.timerStop(paletteTimer);
-        paletteTimer = null
-    })
+    tempPrompt("Palette: " + PALETTES[currentPalette]["Name"]);
 }
 
 PS.touch = function( x, y, data, options ) {
@@ -368,6 +376,7 @@ PS.keyDown = function( key, shift, ctrl, options ) {
         erasing = true
         debounce = false
         isHorizontal = true
+        tempPrompt("Erasing...")
         erase(0)
     } else if (key == 112) {
         // The fact that this functionality exists is funny
@@ -375,8 +384,9 @@ PS.keyDown = function( key, shift, ctrl, options ) {
 
         PS.statusText("My Masterpiece")
     } else if (key == 44 || key == PS.KEY_ARROW_LEFT) {
-        if (linePlaced || erasing) {
-            PS.audioPlay(PALETTE_ERROR_SOUND, {"volume": 0.35})
+        if (linePlaced) {
+            PS.audioPlay(ERROR_SOUND, {volume: 0.15})
+            tempPrompt("Erase to swap palettes!");
             return
         }
 
@@ -387,8 +397,9 @@ PS.keyDown = function( key, shift, ctrl, options ) {
 
         updatePalette()
     } else if (key == 46 || key == PS.KEY_ARROW_RIGHT) {
-        if (linePlaced || erasing) {
-            PS.audioPlay(PALETTE_ERROR_SOUND, {"volume": 0.35})
+        if (linePlaced) {
+            PS.audioPlay(ERROR_SOUND, {volume: 0.15})
+            tempPrompt("Erase to swap palettes!");
             return
         }
 
