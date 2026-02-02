@@ -57,6 +57,8 @@ const PROMPT_TICKS = 90
 var promptTimer
 var debounce = false
 
+var lineErasing = null
+
 var currentPalette = 0
 var linePlaced = false
 
@@ -298,10 +300,12 @@ function clean(y) {
 function erase(y) {
     if (y >= GRID_Y) {
         erasing = false;
+        lineErasing = null;
         return;
     }
 
     erasing = true;
+    lineErasing = y;
 
     PS.audioPlay(ERASE_SOUND)
     for (let x = 0; x < GRID_X; x++) {
@@ -337,7 +341,11 @@ function updatePalette() {
 
     for (let y = 0; y < GRID_Y; y++) {
         for (let x = 0; x < GRID_X; x++) {
-            PS.color(x, y, PALETTES[currentPalette]["Background"]);
+            if (lineErasing && lineErasing == y) {
+                PS.color(x, y, PALETTES[currentPalette]["Contrast"]);
+            } else {
+                PS.color(x, y, PALETTES[currentPalette]["Background"]);
+            }
         }
     }
 
