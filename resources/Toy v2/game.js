@@ -388,7 +388,10 @@ PS.keyDown = function( key, shift, ctrl, options ) {
         erase(0)
     } else if (key == 112) {
         // The fact that this functionality exists is funny
-        PS.audioPlay("fx_tada")
+        if (!debounce) {
+            PS.audioPlay("fx_tada")
+            debounce = true
+        }
 
         PS.statusText("My Masterpiece")
     } else if (key == 44 || key == PS.KEY_ARROW_LEFT) {
@@ -423,5 +426,6 @@ PS.keyDown = function( key, shift, ctrl, options ) {
 PS.keyUp = function( key, shift, ctrl, options ) {
     if (key == 112) {
         PS.statusText("Plaid Toy")
+        debounce = false
     }
 }
