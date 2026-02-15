@@ -55,7 +55,7 @@ function GameState(parent, poly, inert) {
 
 const COLORS = {
     red: {
-        base: 0xe80c0c,
+        base: 0xf20707,
         accent: PS.COLOR_VIOLET
     },
     green: {
@@ -956,6 +956,7 @@ PS.keyDown = function( key, shift, ctrl, options ) {
         move(x, y);
     }
 }
+
 
 
 
