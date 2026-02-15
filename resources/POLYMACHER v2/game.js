@@ -120,7 +120,7 @@ let isParentAlive = true;
 
 // Debug variables
 const DEBUG_LAST = false
-const DEBUG_ID = true
+const DEBUG_ID = false
 const ID_TO_DEBUG = 18
 
 const LEVELS = [
@@ -956,3 +956,4 @@ PS.keyDown = function( key, shift, ctrl, options ) {
         move(x, y);
     }
 }
+
