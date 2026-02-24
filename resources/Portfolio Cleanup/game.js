@@ -45,13 +45,14 @@ const GRID_Y = 18;
 const GAME_X = [1,GRID_X - 2];
 const GAME_Y = [4,GRID_Y - 3];
 const MAX_FILE_H = GAME_Y[1] - GAME_Y[0];
-const BOMB_SPAWN_Y = GAME_Y[0] - 1;
 
 const CHUTE_Y = GAME_Y[0] - 2;
 
+// Gameplay constants
 const GRAVITY_UPDATE = 10;
 const BOMBS_PER_STAGE = 10;
 const FILES_PER_STAGE = 25;
+const BLAST_RADIUS = 1;
 
 // Environment constants
 const BG_COLOR = 0x008080;
@@ -70,6 +71,7 @@ const BORDER = 2;
 
 // Bomb constants
 const BOMB_GLYPH = 0x1F4A3;
+const BLAST_COLOR = PS.COLOR_ORANGE;
 
 // Chute constants
 const CHUTE_COLOR = 0x606060;
@@ -79,6 +81,11 @@ const CHUTE_BORDER = 4;
 const CHUTE_BORDER_COLOR = 0x404040;
 const CHUTE_LEFT_ARROW = 0x2190;
 const CHUTE_RIGHT_ARROW = 0x2192;
+
+// Score constants
+let POINTS_PER_FILE = 50;
+let POINTS_PER_BOMB = 100;
+let POINTS_PER_LEVEL = 1000;
 
 // Space IDs
 const TILE_IDS = {
@@ -106,14 +113,18 @@ const MOVE_SOUND = "fx_click";
 const GRAVITY_SOUND = "fx_swoosh";
 const SHOOT_SOUND = "fx_silencer";
 const EXPLODE_SOUND = "fx_blast1";
+const WIN_SOUND = "fx_tada";
+const LOSE_SOUND = "fx_bloink"
 
 let position = 4;
 let scoreAtStart = 0;
 let score = 0;
 let currentLevel = 0;
 let bombsLeft = BOMBS_PER_STAGE;
+let filesLeft = FILES_PER_STAGE;
 let gameActive = true;
 let gravityTimer;
+let results = true;
 
 let bombs = [];
 let tiles = [];
@@ -126,8 +137,9 @@ PS.init = function( system, options ) {
     PS.audioLoad(EXPLODE_SOUND);
 
     PS.gridSize(GRID_X, GRID_Y);
-    PS.statusText("Portfolio Cleanup")
-    PS.gridColor(PS.COLOR_DARK_GRAY)
+    PS.statusText("Portfolio Cleanup");
+    PS.gridColor(PS.COLOR_GRAY_DARK);
+    PS.statusColor(PS.COLOR_WHITE);
 
     // Set all border & BG color
     for (let x = 0; x < GRID_X; x++) {
@@ -137,13 +149,11 @@ PS.init = function( system, options ) {
         }
     }
 
-    renderBG();
     buildLevel();
-    renderGame();
 };
 
 function buildLevel() {
-    let gameWidth = GAME_X[1] - GAME_X[0];
+    let gameWidth = GAME_X[1] - GAME_X[0] + 1;
     let gameHeight = GAME_Y[1] - GAME_Y[0];
     // Build the game space array
     for (let x = 0; x < gameWidth; x++) {
@@ -154,25 +164,61 @@ function buildLevel() {
     }
 
     // Initialize variables
-    scoreAtStart = score;
+    score = scoreAtStart;
     bombsLeft = BOMBS_PER_STAGE;
-    gameActive = true;
+    filesLeft = FILES_PER_STAGE;
     bombs = [];
 
     if (currentLevel == 0) {
         // Set up the tutorial level
         position = 3;
+        filesLeft = 1;
+        bombsLeft = 3;
         tiles[5][gameHeight] = TILE_IDS.file;
+
+        renderBG();
+        renderGame();
+
+        gameActive = true;
         return;
     }
 
-    PS.seed(currentLevel);
+    // Blow up the seed
+    PS.seed(currentLevel * 93923021939);
+
+    let rowStacks = [];
+    for (let x = 0; x < gameWidth; x++) {
+        rowStacks[x] = 0;
+    }
+
+    for (let i = 0; i < filesLeft; i++) {
+        let x = PS.random(gameWidth) - 1;
+
+        while(rowStacks[x] >= MAX_FILE_H) {
+            x++;
+            if (x >= gameWidth) {
+                x = 0;
+            }
+        }
+
+        let y = gameHeight - rowStacks[x];
+        rowStacks[x] += 1;
+        tiles[x][y] = TILE_IDS.file;
+    }
+
+    renderBG();
+    renderGame();
+
+    gameActive = true;
 }
 
 let scoreTimer;
 const SCORE_TICKS = 60;
 function printScore(increment) {
-    if (scoreTimer) { PS.timerStop(scoreTimer)}
+    if (scoreTimer) {
+        PS.timerStop(scoreTimer)
+        scoreTimer = null;
+    }
 
     if (increment == 0)  {
         printString(0, 1, score.toString(), TEXT_COLOR, GRID_X);
@@ -181,8 +227,6 @@ function printScore(increment) {
 
         scoreTimer = PS.timerStart(SCORE_TICKS, function() {
             printScore(0);
-            PS.timerStop(scoreTimer);
-            scoreTimer = null;
         })
     }
 }
@@ -220,25 +264,84 @@ function renderBG() {
     printBombs();
 }
 
-function explodeBombIndex(bombIndex) {
-    let x = bombs[bombIndex].x;
-    let y = bombs[bombIndex].y;
+function explodeTile(x,y) {
+    if (x < GAME_X[0] || x > GAME_X[1] || y < GAME_Y[0] || y > GAME_Y[1]) {
+        return 0;
+    }
 
-    bombs.splice(bombIndex,1);
+    let tileX = x - GAME_X[0];
+    let tileY = y - GAME_Y[0];
+
+    if (tiles[tileX][tileY] && tiles[tileX][tileY] != TILE_IDS.clear) {
+        tiles[tileX][tileY] = TILE_IDS.clear;
+        filesLeft -= 1;
+        return 1;
+    }
+
+    return 0;
+}
+
+function explodeBomb(x, y) {
+    let filesDestroyed = 0;
+
+    for (let a = x - BLAST_RADIUS; a <= x + BLAST_RADIUS; a++) {
+        for (let b = y - BLAST_RADIUS; b <= y + BLAST_RADIUS; b++) {
+            filesDestroyed += explodeTile(a,b);
+        }
+    }
+
+    let points = filesDestroyed * POINTS_PER_FILE;
+    score += points;
+    printScore(points);
+}
+
+const RESULT_Y = 6
+function createResultWindow(line1, line2, line3) {
+    drawWindow(1, RESULT_Y, GRID_X - 2, 4, "LEVEL")
+    printString(1, RESULT_Y + 1, line1, TEXT_COLOR, GRID_X-2);
+    printString(1, RESULT_Y + 2, line2, TEXT_COLOR, GRID_X-2);
+    printString(1, RESULT_Y + 3, line3, TEXT_COLOR, GRID_X-2);
+}
+
+function levelComplete() {
+    let points = bombsLeft * POINTS_PER_BOMB + POINTS_PER_LEVEL;
+
+    createResultWindow("CLEANED!", "+" + points.toString(), "→SPACE");
+
+    results = true;
+    gameActive = false;
+    score += points;
+    currentLevel += 1;
+    scoreAtStart = score;
+    printScore(points);
+    PS.audioPlay(WIN_SOUND);
+}
+
+function levelFailed() {
+    createResultWindow("FAILED.", filesLeft.toString() + " LEFT", "⟳SPACE");
+    results = true;
+    gameActive = false;
+    PS.audioPlay(LOSE_SOUND);
 }
 
 function gravityTick() {
-    let gravityAffected = false;
+    if (!gameActive) {
+        PS.timerStop(gravityTimer);
+        gravityTimer = null;
+        return;
+    }
+
+    let gravityApplied = false;
     let exploded = false;
     let explodeIndices = [];
 
     for (let i = 0; i < bombs.length; i++) {
-        gravityAffected = true;
+        gravityApplied = true;
         bombs[i].y += 1;
         let tileX = bombs[i].x - GAME_X[0];
         let tileY = bombs[i].y - GAME_Y[0];
 
-        if (bombs[i].y == GAME_Y[1] || tiles[tileX][tileY+1] != TILE_IDS.clear) {
+        if (bombs[i].y == GAME_Y[1] || tiles[tileX][tileY + 1] != TILE_IDS.clear) {
             // Add to array in reverse order
             explodeIndices.unshift(i);
         }
@@ -246,14 +349,17 @@ function gravityTick() {
 
     for (let n = 0; n < explodeIndices.length; n++) {
         exploded = true;
-        explodeBombIndex(explodeIndices[0]);
-    }
+        let x = bombs[explodeIndices[n]].x;
+        let y = bombs[explodeIndices[n]].y;
 
+        bombs.splice(explodeIndices[n],1);
+        explodeBomb(x,y);
+    }
 
     if (exploded) {
-        PS.audioPlay(EXPLODE_SOUND)
+        PS.audioPlay(EXPLODE_SOUND);
     }
-    if (gravityAffected) {
+    if (gravityApplied) {
         PS.audioPlay(GRAVITY_SOUND, {volume: 0.1});
     } else {
         PS.timerStop(gravityTimer);
@@ -261,6 +367,15 @@ function gravityTick() {
     }
 
     renderGame();
+
+    // Check win condition
+    if (filesLeft == 0) {
+        gameActive = false;
+        levelComplete();
+    } else if (bombsLeft == 0 && !gravityTimer) {
+        gameActive = false;
+        levelFailed();
+    }
 }
 
 function renderGame() {
@@ -304,6 +419,7 @@ function renderGame() {
         for (let y = 0; y < tiles[x].length; y++) {
             let id = tiles[x][y];
             if (id != TILE_IDS.clear) {
+                PS.fade(x + GAME_X[0], y + GAME_Y[0], 0);
                 PS.color(x + GAME_X[0], y + GAME_Y[0], TILE_STYLES[id].color);
                 PS.glyph(x + GAME_X[0], y + GAME_Y[0], TILE_STYLES[id].glyph);
             }
@@ -340,6 +456,10 @@ function drawWindow(x,y,w,h,title) {
     for (let a = x + 1; a < x + w - 1; a++) {
         PS.border(a, y, {top: BORDER, left: 0, right: 0, bottom: 0, equal: false, width: 0});
         PS.border(a, y+h-1, {top: 0, left: 0, right: 0, bottom: BORDER, equal: false, width: 0});
+    }
+    for (let b = y + 1; b < y + h - 1; b++) {
+        PS.border(x, b, {top: 0, left: BORDER, right: 0, bottom: 0, equal: false, width: 0});
+        PS.border(x+w-1, b, {top: 0, left: 0, right: BORDER, bottom: 0, equal: false, width: 0});
     }
 
     // Borders, corners
@@ -402,6 +522,9 @@ function moveRight() { move(1); }
 
 PS.keyDown = function( key, shift, ctrl, options ) {
     if (!gameActive) {
+        if (results && key == PS.KEY_SPACE) {
+            buildLevel();
+        }
         return;
     }
 
