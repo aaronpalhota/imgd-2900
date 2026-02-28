@@ -145,7 +145,7 @@ const POINTS_SOUND = "fx_coin1";
 let position = 4;
 let scoreAtStart = 0;
 let score = 0;
-let currentLevel = 16;
+let currentLevel = 0;
 let bombsLeft = BOMBS_PER_STAGE;
 let tilesLeft = MIN_FILES_PER_STAGE;
 let virusesLeft = 0;
@@ -764,4 +764,5 @@ PS.keyDown = function( key, shift, ctrl, options ) {
             fireBomb();
             break;
     }
+
 }
