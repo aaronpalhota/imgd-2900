@@ -764,5 +764,4 @@ PS.keyDown = function( key, shift, ctrl, options ) {
             fireBomb();
             break;
     }
-
 }
