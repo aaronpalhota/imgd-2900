@@ -52,8 +52,8 @@ const CHUTE_Y = GAME_Y[0] - 2;
 // Gameplay constants
 const GRAVITY_UPDATE = 8;
 const BOMBS_PER_STAGE = 10;
-const MIN_FILES_PER_STAGE = 20;
-const MAX_FILES_PER_STAGE = 30;
+const MIN_FILES_PER_STAGE = 15;
+const MAX_FILES_PER_STAGE = 25;
 const BLAST_RADIUS = 1;
 
 // Environment constants
