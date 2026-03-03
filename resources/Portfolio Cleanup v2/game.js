@@ -313,7 +313,7 @@ function printScoreDelay(increment) {
 
     scoreDelayTimer = PS.timerStart(SCORE_DELAY_TICKS, function() {
         printScore(increment);
-        PS.audioPlay(POINTS_SOUND);
+        PS.audioPlay(POINTS_SOUND, {volume:0.3);
     });
     lastIncrement = increment;
 }
@@ -765,3 +765,4 @@ PS.keyDown = function( key, shift, ctrl, options ) {
             break;
     }
 }
+
